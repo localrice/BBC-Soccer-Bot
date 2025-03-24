@@ -1,33 +1,24 @@
-// Receiver Channels (PWM Inputs)
-#define CH1 14  // Forward-Backward
-#define CH2 12  // Left-Right
+// Receiver channels
+#define CH4 14  // Left/Right
+#define CH2 12  // Forward/Backward
+#define CH3 27  // Brake when lowered
 
-// Motor Driver Pins
-#define ENA 5   // Speed control for Motor A
-#define IN1 18  // Motor A direction
-#define IN2 19  
+// Motor control pins
+#define ENA 17   // Speed control for Motor A
+#define IN1 5    // Motor A direction
+#define IN2 18
 
-#define ENB 23  // Speed control for Motor B
-#define IN3 21  // Motor B direction
-#define IN4 22  
-
-int ch1Value, ch2Value;
-
-// Read PWM signal from receiver and map it to motor values
-int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue){
-  int ch = pulseIn(channelInput, HIGH, 30000);
-  if (ch < 100) return defaultValue;
-  return map(ch, 1000, 2000, minLimit, maxLimit);
-}
+#define ENB 23   // Speed control for Motor B
+#define IN3 19   // Motor B direction
+#define IN4 22   
 
 void setup() {
   Serial.begin(115200);
-  
-  // for receiver
-  pinMode(CH1, INPUT);
+
+  pinMode(CH4, INPUT);
   pinMode(CH2, INPUT);
+  pinMode(CH3, INPUT);
   
-  //  for motor controller
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
@@ -36,39 +27,90 @@ void setup() {
   pinMode(IN4, OUTPUT);
 }
 
-void move(int speedA, int speedB, bool dirA, bool dirB) {
-  analogWrite(ENA, abs(speedA));
-  analogWrite(ENB, abs(speedB));
+int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue) {
+  int ch = pulseIn(channelInput, HIGH, 30000);
+  if (ch < 100) return defaultValue;
+  return map(ch, 1000, 2000, minLimit, maxLimit);
+}
 
-  digitalWrite(IN1, dirA);
-  digitalWrite(IN2, !dirA);
-  digitalWrite(IN3, dirB);
-  digitalWrite(IN4, !dirB);
+// Move Forward
+void moveForward(int speed) {
+  analogWrite(ENA, speed);
+  analogWrite(ENB, speed);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+// Move Backward
+void moveBackward(int speed) {
+  analogWrite(ENA, speed);
+  analogWrite(ENB, speed);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+// Turn Right
+void turnRight(int speed) {
+  analogWrite(ENA, speed);
+  analogWrite(ENB, speed);
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+}
+
+// Turn Left
+void turnLeft(int speed) {
+  analogWrite(ENA, speed);
+  analogWrite(ENB, speed);
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+// Stop Motors (No Brake)
+void stopMotors() {
+  digitalWrite(ENA, LOW);
+  digitalWrite(ENB, LOW);
+}
+
+// Brake Motors (Shorts both terminals)
+void brakeMotors() {
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, HIGH);
 }
 
 void loop() {
-  ch1Value = readChannel(CH1, -100, 100, 0);  // Forward-Backward
-  ch2Value = readChannel(CH2, -100, 100, 0);  // Left-Right
+  // Read channels
+  int ch4Value = readChannel(CH2, -100, 100, 0); // Left/Right
+  int ch2Value = readChannel(CH4, -100, 100, 0); // Forward/Backward
+  int ch3Value = readChannel(CH3, -100, 100, 0); // Brake switch
 
-  Serial.print("CH1 (Forward-Backward): ");
-  Serial.print(ch1Value);
-  Serial.print(" | CH2 (Left-Right): ");
-  Serial.println(ch2Value);
+  Serial.print("CH4 (left/right): "); Serial.println(ch4Value);
+  Serial.print("CH2 (up/down): "); Serial.println(ch2Value);
+  Serial.print("CH3 (brake switch): "); Serial.println(ch3Value);
 
-  int speed = map(abs(ch1Value), 0, 100, 0, 255);  // Convert CH1 to PWM speed
-  int turn = map(abs(ch2Value), 0, 100, 0, 255);   // Convert CH2 to PWM turn speed
+  int speed = map(abs(ch2Value), 0, 100, 0, 255);  
+  int turn = map(abs(ch4Value), 0, 100, 0, 255);   
 
-  if (ch1Value > 10) {  // Move Forward
-    move(speed, speed, HIGH, HIGH);
-  } else if (ch1Value < -10) {  // Move Backward
-    move(speed, speed, LOW, LOW);
-  } else if (ch2Value > 10) {  // Turn Right
-    move(turn, turn, HIGH, LOW);
-  } else if (ch2Value < -10) {  // Turn Left
-    move(turn, turn, LOW, HIGH);
-  } else {  // Stop Motors
-    move(0, 0, HIGH, HIGH);
+  // If CH3 is lowered to -50 or less, brake instead of stopping
+  if (ch3Value <= -50) {
+    brakeMotors();
+  } 
+  else {
+    if (ch2Value > 10) moveForward(speed);
+    else if (ch2Value < -10) moveBackward(speed);
+    else if (ch4Value > 10) turnRight(turn);
+    else if (ch4Value < -10) turnLeft(turn);
+    else stopMotors(); // Normal stop
   }
 
-  delay(20);  // Small delay for stability
+  delay(100);
 }
