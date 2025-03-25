@@ -3,74 +3,79 @@
 #define CH2 12  // Forward/Backward
 #define CH3 27  // Brake when lowered
 
+//polarity control could be abstracted away: OUT1 OUT2 OUT3 OUT4
+//in moveForward, backward, etc.
+
 // Motor control pins
 #define ENA 17   // Speed control for Motor A
-#define IN1 5    // Motor A direction
-#define IN2 18
+#define OUT1 5    // Motor A direction
+#define OUT2 18
 
 #define ENB 23   // Speed control for Motor B
-#define IN3 19   // Motor B direction
-#define IN4 22   
+#define OUT3 19   // Motor B direction
+#define OUT4 22   
 
 void setup() {
   Serial.begin(115200);
 
+  //could be put away in a constructor
   pinMode(CH4, INPUT);
   pinMode(CH2, INPUT);
   pinMode(CH3, INPUT);
   
   pinMode(ENA, OUTPUT);
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
+  pinMode(OUT1, OUTPUT);
+  pinMode(OUT2, OUTPUT);
   pinMode(ENB, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
+  pinMode(OUT3, OUTPUT);
+  pinMode(OUT4, OUTPUT);
 }
 
-int readChannel(int channelInput, int minLimit, int maxLimit, int defaultValue) {
+//some identifiers renamed
+int readPWMChannel(int channelInput, int minOutput, int maxOutput, int defaultValue) {
   int ch = pulseIn(channelInput, HIGH, 30000);
   if (ch < 100) return defaultValue;
-  return map(ch, 1000, 2000, minLimit, maxLimit);
+  return map(ch, 1000, 2000, minOutput, maxOutput);
 }
 
 // Move Forward
 void moveForward(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
+  digitalWrite(OUT1, HIGH);
+  digitalWrite(OUT2, LOW);
+  digitalWrite(OUT3, HIGH);
+  digitalWrite(OUT4, LOW);
 }
 
 // Move Backward
 void moveBackward(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(OUT1, LOW);
+  digitalWrite(OUT2, HIGH);
+  digitalWrite(OUT3, LOW);
+  digitalWrite(OUT4, HIGH);
 }
 
 // Turn Right
 void turnRight(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(OUT1, HIGH);
+  digitalWrite(OUT2, LOW);
+  digitalWrite(OUT3, LOW);
+  digitalWrite(OUT4, HIGH);
 }
 
 // Turn Left
 void turnLeft(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
+  digitalWrite(OUT1, LOW);
+  digitalWrite(OUT2, HIGH);
+  digitalWrite(OUT3, HIGH);
+  digitalWrite(OUT4, LOW);
 }
 
 // Stop Motors (No Brake)
@@ -81,17 +86,17 @@ void stopMotors() {
 
 // Brake Motors (Shorts both terminals)
 void brakeMotors() {
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, HIGH);
+  digitalWrite(OUT1, HIGH);
+  digitalWrite(OUT2, HIGH);
+  digitalWrite(OUT3, HIGH);
+  digitalWrite(OUT4, HIGH);
 }
 
 void loop() {
   // Read channels
-  int ch4Value = readChannel(CH2, -100, 100, 0); // Left/Right
-  int ch2Value = readChannel(CH4, -100, 100, 0); // Forward/Backward
-  int ch3Value = readChannel(CH3, -100, 100, 0); // Brake switch
+  int ch4Value = readPWMChannel(CH2, -100, 100, 0); // Left/Right
+  int ch2Value = readPWMChannel(CH4, -100, 100, 0); // Forward/Backward
+  int ch3Value = readPWMChannel(CH3, -100, 100, 0); // Brake switch
 
   Serial.print("CH4 (left/right): "); Serial.println(ch4Value);
   Serial.print("CH2 (up/down): "); Serial.println(ch2Value);
