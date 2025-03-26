@@ -4,11 +4,11 @@
 #define CH2 A0  // Forward/Backward
 
 // Motor control pins
-#define ENA A3   // Speed control for Motor A (Use PWM pin if needed)
+#define ENA 6   // Speed control for Motor A (Use PWM pin if needed)
 #define IN1 11   // Motor A direction
 #define IN2 12
 
-#define ENB A4   // Speed control for Motor B (Use PWM pin if needed)
+#define ENB 5   // Speed control for Motor B (Use PWM pin if needed)
 #define IN3 8   // Motor B direction
 #define IN4 9
 
@@ -38,8 +38,10 @@ int readPWMChannel(int channelInput, int minOutput, int maxOutput, int defaultVa
 void moveForward(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
+
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
+
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
 }
@@ -85,11 +87,53 @@ void stopMotors() {
   analogWrite(ENB, 0);
 }
 
+void test_motors(){
+
+  Serial.println("1");
+  moveForward(50);
+  delay(1000);
+
+
+  Serial.println("200");
+  moveBackward(255);
+  
+  delay(1000);
+  Serial.println("breeh");
+  Serial.println("breeh");
+  Serial.println("breeh");
+  /*
+  turnLeft(200);
+  delay(500);
+  turnRight(200);
+  delay(500);
+  */
+}
+
+void single(){
+  analogWrite(ENA, 100);
+  analogWrite(ENB, 100);
+
+  digitalWrite(IN3, HIGH);
+  digitalWrite(IN4, LOW);
+}
+
+bool do_monitor = false;
+
+//#define debug
+#define testing
 void loop(){
   int ch2 = readPWMChannel(CH2, -100, 100, 0);
   int ch4 = readPWMChannel(CH4, -100, 100, 0);
   int ch3 = readPWMChannel(CH3, -100, 100, 0);
+  
+  #ifdef debug
+  Serial.println("Debuging\n");
+  
+  //test_motors();
+  single();
+  #endif
 
+  #ifndef debug
   if (ch3 < -80) { // Brake condition
     Serial.println("Applying brakes!");
     applyBrakes();
@@ -99,25 +143,35 @@ void loop(){
   // Priority: Left/Right first
   if(ch4 != 0) {
     if(ch4 > 0) {
+      #ifdef testing
       Serial.print("Turning left with speed: ");
       Serial.println(ch4);
+      #endif
       turnLeft(ch4 * 255.0 / 100.0);
     } else {
+      #ifdef testing
       Serial.print("Turning right with speed: ");
       Serial.println(-ch4);
+      #endif
       turnRight(-ch4 * 255.0 / 100.0);
     }
   } else if (ch2 != 0) { // Only move forward/backward if no turn input
     if(ch2 > 0) {
+      #ifdef testing
       Serial.print("Moving forward with speed: ");
       Serial.println(ch2);
+      #endif
       moveForward(ch2 * 255.0 / 100.0);
     } else {
+      #ifdef testing
       Serial.print("Moving backward with speed: ");
       Serial.println(-ch2);
+      #endif
       moveBackward(-ch2 * 255.0 / 100.0);
     }
   } else {
     stopMotors();
   }
+  
+  #endif
 }
