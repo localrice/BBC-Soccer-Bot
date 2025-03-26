@@ -1,0 +1,7 @@
+non calibrated:
+
+moves forward+backward
+turns left+right
+
+mis-behaviour:
+right motor malfunction: (periodic unresponsiveness)

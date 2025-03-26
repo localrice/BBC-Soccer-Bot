@@ -19,21 +19,20 @@ void setup(){
   pinMode(CH2, INPUT);
   pinMode(CH3, INPUT);
 
-  
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
   pinMode(ENB, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
-  
 }
 
-//some identifiers renamed
+// Read PWM signal and map to range with padding
 int readPWMChannel(int channelInput, int minOutput, int maxOutput, int defaultValue) {
-  int ch = pulseIn(channelInput, HIGH, 30000);
-  if (ch < 100) return defaultValue;
-  return map(ch, 986, 1978, minOutput, maxOutput);
+  int ch = pulseIn(channelInput, HIGH, 40000); // Extended timeout
+  if (ch < 100 || ch > 2500) return defaultValue; // Filter invalid signals
+  int mappedValue = map(ch, 986, 1978, minOutput, maxOutput);
+  return (abs(mappedValue) < 10) ? 0 : mappedValue;  // Apply dead zone padding of -10 to +10
 }
 
 void moveForward(int speed) {
@@ -58,18 +57,27 @@ void turnLeft(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
   digitalWrite(IN1, LOW);  
-  digitalWrite(IN2, HIGH);  // Reverse left motor
+  digitalWrite(IN2, HIGH);
   digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);   // Forward right motor
+  digitalWrite(IN4, LOW);
 }
 
 void turnRight(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
-  digitalWrite(IN1, HIGH); 
-  digitalWrite(IN2, LOW);   // Forward left motor
+  digitalWrite(IN1, HIGH);
+  digitalWrite(IN2, LOW);
   digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);  // Reverse right motor
+  digitalWrite(IN4, HIGH);
+}
+
+void applyBrakes() {
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, LOW);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, LOW);
+  analogWrite(ENA, 255);  // Full brake
+  analogWrite(ENB, 255);
 }
 
 void stopMotors() {
@@ -78,42 +86,38 @@ void stopMotors() {
 }
 
 void loop(){
-
   int ch2 = readPWMChannel(CH2, -100, 100, 0);
-  if(ch2 != 0){
-    if(ch2>0){
-      //move forward
-      Serial.print("Moving forward with speed");
-      Serial.print(ch2); Serial.println();
-      moveForward(ch2*225.0/100.0);
-    }
-    else{
-      //move backward
-      Serial.print("Moving backward with speed");
-      Serial.print(ch2); Serial.println();
-      moveBackward(-ch2*225.0/100.0);
-      
-    }
-  }
-
   int ch4 = readPWMChannel(CH4, -100, 100, 0);
-  if(ch4 != 0){
-    if(ch4>0){
-      //move forward
-      Serial.print("Moving forward with speed");
-      Serial.print(ch4); Serial.println();
-      moveForward(ch4*225.0/100.0);
-    }
-    else{
-      //move backward
-      Serial.print("Moving backward with speed");
-      Serial.print(ch4); Serial.println();
-      moveBackward(-ch4*225.0/100.0);
-      
-    }
+  int ch3 = readPWMChannel(CH3, -100, 100, 0);
+
+  if (ch3 < -80) { // Brake condition
+    Serial.println("Applying brakes!");
+    applyBrakes();
+    return;  // Skip other controls while braking
   }
 
+  // Priority: Left/Right first
+  if(ch4 != 0) {
+    if(ch4 > 0) {
+      Serial.print("Turning left with speed: ");
+      Serial.println(ch4);
+      turnLeft(ch4 * 255.0 / 100.0);
+    } else {
+      Serial.print("Turning right with speed: ");
+      Serial.println(-ch4);
+      turnRight(-ch4 * 255.0 / 100.0);
+    }
+  } else if (ch2 != 0) { // Only move forward/backward if no turn input
+    if(ch2 > 0) {
+      Serial.print("Moving forward with speed: ");
+      Serial.println(ch2);
+      moveForward(ch2 * 255.0 / 100.0);
+    } else {
+      Serial.print("Moving backward with speed: ");
+      Serial.println(-ch2);
+      moveBackward(-ch2 * 255.0 / 100.0);
+    }
+  } else {
+    stopMotors();
+  }
 }
-
-//1978 : max
-//989 : min
