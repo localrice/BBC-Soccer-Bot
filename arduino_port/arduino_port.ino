@@ -3,6 +3,10 @@
 #define CH3 A1  // Brake when lowered
 #define CH2 A0  // Forward/Backward
 
+//LED eye pins
+#define LEYE A4
+#define REYE A5
+
 // Motor control pins
 #define ENA 6   // Speed control for Motor A (Use PWM pin if needed)
 #define IN1 11   // Motor A direction
@@ -19,9 +23,15 @@ void setup(){
   pinMode(CH2, INPUT);
   pinMode(CH3, INPUT);
 
+  pinMode(LEYE, OUTPUT);
+  pinMode(REYE, OUTPUT);
+  digitalWrite(LEYE, HIGH);
+  digitalWrite(REYE, HIGH);
+
   pinMode(ENA, OUTPUT);
   pinMode(IN1, OUTPUT);
   pinMode(IN2, OUTPUT);
+  
   pinMode(ENB, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
@@ -39,20 +49,24 @@ void moveForward(int speed) {
   analogWrite(ENA, speed);
   analogWrite(ENB, speed);
 
+  digitalWrite(IN1, LOW);
+  digitalWrite(IN2, HIGH);
+  digitalWrite(IN3, LOW);
+  digitalWrite(IN4, HIGH);
+
+}
+
+void moveBackward(int speed) {
+
+  analogWrite(ENA, speed);
+  analogWrite(ENB, speed);
+
   digitalWrite(IN1, HIGH);
   digitalWrite(IN2, LOW);
 
   digitalWrite(IN3, HIGH);
   digitalWrite(IN4, LOW);
-}
 
-void moveBackward(int speed) {
-  analogWrite(ENA, speed);
-  analogWrite(ENB, speed);
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
 }
 
 void turnLeft(int speed) {
@@ -109,69 +123,69 @@ void test_motors(){
   */
 }
 
-void single(){
-  analogWrite(ENA, 100);
-  analogWrite(ENB, 100);
-
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-}
-
-bool do_monitor = false;
-
 //#define debug
 #define testing
 void loop(){
-  int ch2 = readPWMChannel(CH2, -100, 100, 0);
-  int ch4 = readPWMChannel(CH4, -100, 100, 0);
-  int ch3 = readPWMChannel(CH3, -100, 100, 0);
-  
-  #ifdef debug
-  Serial.println("Debuging\n");
-  
-  //test_motors();
-  single();
-  #endif
+  int ch3 = readPWMChannel(CH3, 0, 100, 0);
 
+  //---------------------------------------------------------------------------
   #ifndef debug
-  if (ch3 < -80) { // Brake condition
+  if (ch3 == 0) { // Brake condition
     Serial.println("Applying brakes!");
     applyBrakes();
     return;  // Skip other controls while braking
   }
 
   // Priority: Left/Right first
-  if(ch4 != 0) {
-    if(ch4 > 0) {
-      #ifdef testing
-      Serial.print("Turning left with speed: ");
-      Serial.println(ch4);
-      #endif
-      turnLeft(ch4 * 255.0 / 100.0);
-    } else {
-      #ifdef testing
-      Serial.print("Turning right with speed: ");
-      Serial.println(-ch4);
-      #endif
-      turnRight(-ch4 * 255.0 / 100.0);
-    }
-  } else if (ch2 != 0) { // Only move forward/backward if no turn input
-    if(ch2 > 0) {
-      #ifdef testing
-      Serial.print("Moving forward with speed: ");
-      Serial.println(ch2);
-      #endif
-      moveForward(ch2 * 255.0 / 100.0);
-    } else {
-      #ifdef testing
-      Serial.print("Moving backward with speed: ");
-      Serial.println(-ch2);
-      #endif
-      moveBackward(-ch2 * 255.0 / 100.0);
-    }
-  } else {
-    stopMotors();
+  //proper priority
+  int ch4 = readPWMChannel(CH4, -100, 100, 0);
+  digitalWrite(LEYE, HIGH);
+  if(ch4 > 0) {
+    digitalWrite(LEYE, LOW);
+    #ifdef testing
+    Serial.print("Turning right with speed: ");
+    Serial.println(ch4);
+    #endif
+    turnRight(ch4*(2.55*ch3/100));
+  }  
+  digitalWrite(REYE, HIGH);
+  if(ch4 < 0){
+    digitalWrite(REYE, LOW);
+    #ifdef testing
+    Serial.print("Turning left with speed: ");
+    Serial.println(ch4*(2.55*ch3/100));
+    #endif
+    ch4 *=-1;
+    turnLeft(ch4*2.55);
   }
+
+  int ch2 = readPWMChannel(CH2, -100, 100, 0);
+  if(ch2 > 0){
+    moveForward(ch2*(2.55*ch3/100));
+    #ifdef testing
+    Serial.print("Moving forward with speed: ");
+    Serial.println(-ch2);
+    #endif
+  }
+  if(ch2 < 0) {
+    ch2 *= -1;
+    moveBackward(ch2*(2.55*ch3/100));
+    #ifdef testing
+    Serial.print("Moving backward with speed: ");
+    Serial.println(ch2);
+    #endif
+  }
+  if(ch2 == 0 && ch4 == 0) stopMotors();
+
+  #endif 
+ 
+  //----------------------------------------------------------------------
+  #ifdef debug
+  int ch4 = readPWMChannel(CH4, -100, 100, 0);
+  
+  Serial.println("Debuging\n");
+  Serial.println(ch4);
+  moveForward(255);
   
   #endif
 }
